@@ -1,0 +1,1 @@
+// defines your database schema 9tables, fields, indexes.
