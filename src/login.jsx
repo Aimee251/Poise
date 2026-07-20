@@ -14,17 +14,17 @@ const SANS = "'Inter', -apple-system, system-ui, sans-serif";
 
 //login button
 
-const Btn = ({ Children, onclick, variant = "dark", full, disabled, style, type }) => {
-    const v = variant === "dark" ? { background: C.ink, Color: C.bg } :
-        { background: C.card, color: C.ink, boarder: `1px solid ${C.line}` };
+const Btn = ({ children, onClick, variant = "dark", full, disabled, style, type }) => {
+    const v = variant === "dark" ? { background: C.ink, color: C.bg } :
+        { background: C.card, color: C.ink, border: `1px solid ${C.line}` };
     return (
-        <button type={type || "button"} onClick={onclick} disabled={disabled}
+        <button type={type || "button"} onClick={onClick} disabled={disabled}
             style={{
                 border: "none", borderRadius: 13, padding: "13px 16px", fontSize: 15,
                 fontWeight: 500, cursor: disabled ? "default" : "pointer",
                 opacity: disabled ? 0.55 : 1, fontFamily: SANS,
                 width: full ? "100%" : "auto", ...v, ...style
-            }}>{Children}</button>
+            }}>{children}</button>
     )
 };
 
