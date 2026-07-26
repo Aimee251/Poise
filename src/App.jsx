@@ -91,10 +91,11 @@ const Field = ({ label, value, onChange, prefix, type = "number", placeholder })
   </div>
 );
 const Chip = ({ tier }) => (
-  <span style={{ fontSize: 12.5, fontWeight: 500, color: C.ink, whiteSpace: "nowrap" }}>
+  <span style={{ fontSize: 12.5, fontWeight: 500, color: tier === "ready" ? C.jadeD : C.ink, whiteSpace: "nowrap" }}>
     {TIER[tier].label}
   </span>
 );
+
 
 const H = ({ children }) => (
   <p style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 500, color: C.ink, margin: "20px 0 12px" }}>{children}</p>
