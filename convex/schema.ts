@@ -32,6 +32,15 @@ export default defineSchema({
     views: v.optional(v.number()),       // count of detail view opens
     lastOpenedAt: v.optional(v.number()),// timestamp of last open
     storageId: v.optional(v.id("_storage")), // Convex file storage ID
+    aiForecast: v.optional(
+      v.object({
+        trend: v.union(v.literal("up"), v.literal("down"), v.literal("flat")),
+        pctChange6mo: v.number(),
+        confidence: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
+        reasoning: v.string(),
+        generatedAt: v.number(),
+      })
+    ),
   }).index("by_user", ["userId"]),
 
   plans: defineTable({
@@ -44,9 +53,16 @@ export default defineSchema({
     apr: v.number(),
   }).index("by_user", ["userId"]),
 
+  aiUsage: defineTable({
+    userId: v.id("users"),
+    date: v.string(),
+    count: v.number(),
+  }).index("by_user_date", ["userId", "date"]),
+
   // signup rate-limit log (IP = abuse throttle, never identity)
   signupEvents: defineTable({
     ip: v.string(),
     at: v.number(),
   }).index("by_ip", ["ip"]),
 });
+

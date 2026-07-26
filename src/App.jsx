@@ -5,6 +5,7 @@ import { api } from "../convex/_generated/api";
 import SignIn from "./login.jsx";
 import { CATS, whenToBuy, tierOf } from "./model.js";
 import { PriceForecastChart } from "./PriceForecastChart.jsx";
+import { AIForecast } from "./AIForecast.jsx";
 import { SketchIntro } from "./SketchIntro.jsx";
 import CALENDAR_IMG from "../calendar.PNG";
 import LUXURY_IMG from "../luxury.PNG";
@@ -447,6 +448,9 @@ function ItemDetail({ v, settings, onBack, onWatch }) {
           <PriceForecastChart forecast={v.fc} />
         </div>
       </div>
+      {v.item.cat === "other" && (
+        <AIForecast want={v.item} C={C} Icon={Icon} Btn={Btn} />
+      )}
       <div style={{ padding: "12px 16px 20px" }}>
         <Btn full onClick={onWatch}>
           {v.item.watching ? "Watching — stop reminders"
