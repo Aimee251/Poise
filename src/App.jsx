@@ -487,8 +487,11 @@ function Financing({ plans, onBack, onConnect, onRemove }) {
             <p style={{ margin: 0, fontSize: 12.5, color: C.sub }}>
               {money(p.installment)} × {p.remaining} left · next {p.nextDue}</p>
           </div>
-          <button onClick={() => onRemove(p._id)} aria-label={`Remove ${p.provider} plan`}
-            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: C.sub,
+          <button onClick={(e) => {
+            console.log("× button onClick fired for plan ID:", p._id);
+            onRemove(p._id);
+          }} aria-label={`Remove ${p.provider} plan`}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 8, color: C.sub,
               fontSize: 18, lineHeight: 1, flexShrink: 0 }}>×</button>
         </div>
       ))}
@@ -837,7 +840,12 @@ function MainApp({ onSignOut }) {
       ) : view?.t === "financing" ? (
         <Financing plans={plans} onBack={() => setView(null)}
           onConnect={() => setView({ t: "connect" })}
-          onRemove={(id) => void removePlan({ id })} />
+          onRemove={(id) => {
+            console.log("onRemove called with ID:", id);
+            removePlan({ id })
+              .then(() => console.log("removePlan success for ID:", id))
+              .catch((err) => console.error("removePlan error for ID:", id, err));
+          }} />
       ) : view?.t === "connect" ? (
         <ConnectAccounts
           connectedProviders={plans.map((p) => p.provider)}
