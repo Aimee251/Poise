@@ -22,7 +22,7 @@ declare const process: { env: Record<string, string | undefined> };
  * for the current recommended fast/cheap model before shipping.
  */
 const DAILY_LIMIT = 3;
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-3.5-flash";
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export const getUsage = query({
@@ -94,45 +94,69 @@ export const predictPrice = action({
       throw new Error(`You've used all ${DAILY_LIMIT} AI forecasts for today — come back tomorrow.`);
     }
 
+
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("AI forecasting isn't configured yet (missing GEMINI_API_KEY).");
 
     const prompt = `You are a cautious pricing analyst. For an item called "${itemName}" ` +
       `currently priced at $${price}, estimate how its price is likely to move over the next ` +
       `6 months. Be honest about uncertainty — if there's no real basis for a prediction, say so ` +
-      `with low confidence and a near-zero change. Respond with ONLY minified JSON, no prose, ` +
-      `no markdown fences, matching exactly this shape: ` +
-      `{"trend":"up"|"down"|"flat","pct_change_6mo":number,"confidence":"low"|"medium"|"high","reasoning":"one short sentence"}`;
+      `with low confidence and a near-zero change. Respond with a JSON object matching the requested schema.`;
 
     let data;
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: {
             "content-type": "application/json",
-            "x-goog-api-key": apiKey,
           },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: 200, temperature: 0.4 },
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: "OBJECT",
+                properties: {
+                  trend: { type: "STRING", enum: ["up", "down", "flat"] },
+                  pct_change_6mo: { type: "NUMBER" },
+                  confidence: { type: "STRING", enum: ["low", "medium", "high"] },
+                  reasoning: { type: "STRING" }
+                },
+                required: ["trend", "pct_change_6mo", "confidence", "reasoning"]
+              },
+              maxOutputTokens: 2048,
+              temperature: 0.4
+            },
+
           }),
         }
       );
-      if (!res.ok) throw new Error(`AI request failed (${res.status})`);
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => "");
+        throw new Error(`AI request failed (${res.status}): ${errorText}`);
+      }
       data = await res.json();
-    } catch (err) {
-      throw new Error("Couldn't reach the AI service — try again, this attempt wasn't counted.");
+    } catch (err: any) {
+      console.error("AI service fetch error:", err);
+      throw new Error(`Couldn't reach the AI service: ${err.message || err}`);
     }
 
+
+
+
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+    console.log("AI Raw Text Response:", text);
     let parsed;
     try {
       parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
-    } catch {
+    } catch (err: any) {
+      console.error("AI JSON Parse Error:", err, "Raw text:", text);
       parsed = { trend: "flat", pct_change_6mo: 0, confidence: "low", reasoning: "Could not parse a forecast." };
     }
+
 
     const forecast = {
       trend: parsed.trend === "up" || parsed.trend === "down" ? parsed.trend : "flat",
