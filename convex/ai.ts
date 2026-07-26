@@ -3,6 +3,8 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 
+declare const process: { env: Record<string, string | undefined> };
+
 /**
  * AI price-forecast feature — for "other"-category wants only.
  * Rate-limited to DAILY_LIMIT calls per user per day, checked server-side.
@@ -87,7 +89,7 @@ export const predictPrice = action({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const check = await ctx.runMutation(internal.ai._checkUsage, { userId });
+    const check = await ctx.runMutation((internal.ai as any)._checkUsage, { userId });
     if (!check.allowed) {
       throw new Error(`You've used all ${DAILY_LIMIT} AI forecasts for today — come back tomorrow.`);
     }
@@ -140,8 +142,9 @@ export const predictPrice = action({
       generatedAt: Date.now(),
     };
 
-    const used = await ctx.runMutation(internal.ai._commitUsage, { userId });
-    await ctx.runMutation(internal.ai._saveForecast, { wantId, userId, forecast });
+    const used = await ctx.runMutation((internal.ai as any)._commitUsage, { userId });
+    await ctx.runMutation((internal.ai as any)._saveForecast, { wantId, userId, forecast });
     return { ...forecast, usesRemaining: DAILY_LIMIT - used };
   },
 });
+
