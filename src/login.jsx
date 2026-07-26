@@ -10,7 +10,7 @@ const C = {
 };
 
 const SERIF = "Fraunces, Georgia, serif";
-const SANS = "'Inter', -apple-system, system-ui, sans-serif";
+const SANS = "'Josefin Sans', -apple-system, system-ui, sans-serif";
 
 //login button
 
@@ -85,8 +85,46 @@ export default function SignIn() {
     return (
         <form onSubmit={submitEmail}
             style={{ flex: 1, display: "flex", flexDirection: "column", padding: "0 24px", overflowY: "auto" }}>
+            <style>{`
+                @keyframes wormCrawl {
+                    0% {
+                        stroke-dashoffset: 140;
+                        stroke-dasharray: 40 140;
+                        transform: scaleX(0.8);
+                    }
+                    40% {
+                        stroke-dashoffset: 15;
+                        stroke-dasharray: 130 50;
+                        transform: scaleX(1.45);
+                    }
+                    70% {
+                        stroke-dashoffset: -50;
+                        stroke-dasharray: 50 130;
+                        transform: scaleX(1.1);
+                    }
+                    100% {
+                        stroke-dashoffset: 140;
+                        stroke-dasharray: 40 140;
+                        transform: scaleX(0.8);
+                    }
+                }
+                .worm-line {
+                    transform-origin: left center;
+                    animation: wormCrawl 3.2s ease-in-out infinite;
+                }
+            `}</style>
             <div style={{ paddingTop: 34 }}>
-                <p style={{ fontFamily: SERIF, fontSize: 30, fontWeight: 500, color: C.ink, margin: "0 0 6px" }}>Poise</p>
+                <h1 style={{ fontFamily: SERIF, fontSize: 32, fontWeight: 500, color: C.ink, margin: "0 0 2px" }}>Poise</h1>
+                <svg width="160" height="16" viewBox="0 0 170 18" style={{ margin: "2px 0 14px", display: "block", overflow: "visible" }} aria-hidden="true">
+                    <path
+                        className="worm-line"
+                        d="M5 9 C 25 2, 45 15, 65 7 S 110 3, 135 10 S 155 13, 165 8"
+                        fill="none"
+                        stroke="#D8B36A"
+                        strokeWidth="3.4"
+                        strokeLinecap="round"
+                    />
+                </svg>
                 <p style={{ fontSize: 14, color: C.sub, lineHeight: 1.55, margin: "0 0 22px" }}>
                     {flow === "signIn"
                         ? "Welcome back — your wants and baseline are where you left them."

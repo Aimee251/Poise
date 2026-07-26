@@ -31,6 +31,7 @@ export default defineSchema({
     watching: v.boolean(),      // "remind me at the window"
     views: v.optional(v.number()),       // count of detail view opens
     lastOpenedAt: v.optional(v.number()),// timestamp of last open
+    storageId: v.optional(v.id("_storage")), // Convex file storage ID
   }).index("by_user", ["userId"]),
 
   plans: defineTable({

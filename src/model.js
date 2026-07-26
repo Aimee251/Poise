@@ -1,12 +1,4 @@
 // Poise decision model — JS port of buywindow.py. Pure functions, no React.
-/// price prediction graph
-import { PriceForecastChart } from "./PriceForecastChart.jsx";
-import { forecastFor } from "./model.js";
-
-const fc = forecastFor(item);
-<PriceForecastChart forecast={fc} />
-///
-
 export const WKM = 4.345;
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 

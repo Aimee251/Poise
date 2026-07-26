@@ -1,10 +1,22 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { Authenticated, Unauthenticated, AuthLoading, useQuery, useMutation } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../convex/_generated/api";
 import SignIn from "./login.jsx";
 import { CATS, whenToBuy, tierOf } from "./model.js";
 import { PriceForecastChart } from "./PriceForecastChart.jsx";
+import { SketchIntro } from "./SketchIntro.jsx";
+import CALENDAR_IMG from "../calendar.PNG";
+import LUXURY_IMG from "../luxury.PNG";
+import TECH_IMG from "../tech.PNG";
+
+const CAT_IMAGES = {
+  luxury: LUXURY_IMG,
+  tech: TECH_IMG,
+  seasonal: CALENDAR_IMG,
+};
+
+const getItemImage = (item) => item.imageUrl || CAT_IMAGES[item.cat];
 
 /** Poise — full stack. Auth gate -> (no profile? onboarding) -> app.
  *  profiles/wants/plans live in Convex; every write recomputes verdicts
@@ -12,14 +24,14 @@ import { PriceForecastChart } from "./PriceForecastChart.jsx";
 
 // ---------- design tokens -------------------------------------------------
 const C = {
-  bg: "#F3F1EC", card: "#FBFAF7", ink: "#1E1B16", sub: "#6B655B",
-  line: "#E4E0D7", jade: "#1D9E75", jadeD: "#0F6E56", jadeBg: "#E1F1EA",
+  bg: "#F8F7F4", card: "#FFFFFF", ink: "#1A1815", sub: "#635D54",
+  line: "#E8E5DF", jade: "#1D9E75", jadeD: "#0F6E56", jadeBg: "#E1F1EA",
   amber: "#BA7517", amberD: "#854F0B", amberBg: "#F6EAD4",
   clay: "#9A3B23", clayBg: "#F3E2DB", accent: "#4A3F86", accentBg: "#EAE7F5",
-  dark: "#1E1B16", paper: "#EFE9DC", mint: "#5DCAA5", gold: "#D8B36A",
+  dark: "#161412", paper: "#EFE9DC", mint: "#5DCAA5", gold: "#D8B36A",
 };
 const SERIF = "Fraunces, Georgia, serif";
-const SANS = "'Inter', -apple-system, system-ui, sans-serif";
+const SANS = "'Josefin Sans', -apple-system, system-ui, sans-serif";
 const money = (n) => "$" + Math.round(n).toLocaleString();
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
@@ -57,6 +69,7 @@ const GLYPH = { luxury: "bag", tech: "device", seasonal: "gift", other: "gift" }
 // ---------- shared ----------------------------------------------------------
 const Btn = ({ children, onClick, variant = "dark", full, disabled, style }) => {
   const v = variant === "dark" ? { background: C.ink, color: C.bg }
+    : variant === "gold" ? { background: C.gold, color: "#1E1B16", boxShadow: "0 0 16px rgba(216, 179, 106, 0.45), 0 4px 14px rgba(216, 179, 106, 0.3)" }
     : variant === "light" ? { background: C.card, color: C.ink, border: `1px solid ${C.line}` }
     : { background: "transparent", color: C.sub };
   return <button onClick={onClick} disabled={disabled} style={{ border: "none", borderRadius: 13,
@@ -183,9 +196,7 @@ function Home({ profile, verdicts, plans, onOpen, onAdd, onFinancing }) {
     const viewsA = a.item.views ?? 0;
     const viewsB = b.item.views ?? 0;
     if (viewsB !== viewsA) return viewsB - viewsA;
-    const timeA = a.item.lastOpenedAt ?? 0;
-    const timeB = b.item.lastOpenedAt ?? 0;
-    return timeB - timeA;
+    return (b.item.lastOpenedAt ?? 0) - (a.item.lastOpenedAt ?? 0);
   });
 
   const waiting = verdicts.filter((v) => v.action === "wait").sort((a, b) => a.tStar - b.tStar);
@@ -193,7 +204,10 @@ function Home({ profile, verdicts, plans, onOpen, onAdd, onFinancing }) {
   const rest = verdicts.filter((v) => v.item._id !== hero?.item._id);
   const owed = plans.reduce((s, p) => s + p.installment * p.remaining, 0);
   return (
-    <div style={{ flex: 1, overflowY: "auto", padding: "0 16px" }}>
+    <div style={{
+      flex: 1, overflowY: "auto", padding: "0 16px", position: "relative",
+      background: "radial-gradient(ellipse at 50% 15%, rgba(245, 235, 218, 0.7) 0%, rgba(248, 247, 244, 1) 75%)",
+    }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 2px 12px" }}>
         <div>
           <p style={{ margin: 0, fontSize: 13, color: C.sub }}>Good evening</p>
@@ -214,24 +228,32 @@ function Home({ profile, verdicts, plans, onOpen, onAdd, onFinancing }) {
       )}
 
       {hero && (<>
-        <p style={{ margin: "4px 2px 8px", fontSize: 13, color: C.sub }}>The one you keep opening</p>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "4px 2px 8px" }}>
+          <Icon n="spark" c={C.gold} s={16} />
+          <p style={{ margin: 0, fontSize: 13, color: C.ink, fontWeight: 500 }}>The one you keep opening</p>
+        </div>
         <div onClick={() => onOpen(hero.item._id)} style={{ background: C.dark, borderRadius: 18,
-          padding: 20, cursor: "pointer" }}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
+          padding: 20, cursor: "pointer", border: "1px solid rgba(216, 179, 106, 0.35)",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.35), 0 0 20px rgba(216, 179, 106, 0.15)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <p style={{ margin: 0, fontFamily: SERIF, fontSize: 21, fontWeight: 500, color: C.bg }}>{hero.item.name}</p>
-              <p style={{ margin: "2px 0 0", fontSize: 14, color: "#B7B0A4" }}>{money(hero.item.price)}</p>
+              <p style={{ margin: 0, fontFamily: SERIF, fontSize: 23, fontWeight: 500, color: C.bg }}>{hero.item.name}</p>
+              <p style={{ margin: "3px 0 0", fontSize: 15, color: "#B7B0A4" }}>{money(hero.item.price)}</p>
             </div>
-            <div style={{ width: 42, height: 42, borderRadius: 12, background: "#2E2A22",
-              display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Icon n={GLYPH[hero.item.cat] || "gift"} c={C.gold} s={20} />
-            </div>
+            {getItemImage(hero.item) ? (
+              <img src={getItemImage(hero.item)} alt={hero.item.name} style={{ width: 58, height: 58, borderRadius: 14, objectFit: "contain" }} />
+            ) : (
+              <div style={{ width: 58, height: 58, borderRadius: 14, background: "#2E2A22",
+                display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icon n={GLYPH[hero.item.cat] || "gift"} c={C.gold} s={24} />
+              </div>
+            )}
           </div>
           {hero.action === "wait" ? (<>
             <div style={{ margin: "18px 0 8px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
                 <span style={{ fontSize: 12.5, color: "#B7B0A4" }}>Weeks to your buy window</span>
-                <span style={{ fontSize: 12.5, fontWeight: 500, color: C.bg }}>{hero.tStar} wk</span>
+                <span style={{ fontSize: 12.5, fontWeight: 500, color: C.mint }}>{hero.tStar} wk</span>
               </div>
               <div style={{ height: 7, background: "#3A362D", borderRadius: 20 }}>
                 <div style={{ height: "100%", width: `${clamp(100 - (hero.tStar / 26) * 100, 4, 100)}%`,
@@ -240,12 +262,13 @@ function Home({ profile, verdicts, plans, onOpen, onAdd, onFinancing }) {
             </div>
             <p style={{ margin: "12px 0 0", fontSize: 14, lineHeight: 1.5, color: C.paper }}>
               About {hero.tStar} week{hero.tStar !== 1 ? "s" : ""} and this turns{" "}
-              <span style={{ color: C.mint, fontWeight: 500 }}>green</span> — crunch risk drops{" "}
+              <span style={{ color: C.mint, fontWeight: 500 }}>ready</span> — crunch risk drops{" "}
               {Math.round(hero.piNow * 100)}% → {Math.round(hero.piStar * 100)}%.
             </p>
           </>) : hero.action === "buy_now" ? (
-            <p style={{ margin: "16px 0 0", fontSize: 14, lineHeight: 1.5, color: C.paper }}>
-              You're there. If it's still a yes — this is the moment.</p>
+            <p style={{ margin: "14px 0 0", fontSize: 14, color: C.mint, fontWeight: 500 }}>
+              Good to buy today — crunch risk is safe at {Math.round(hero.piNow * 100)}%.
+            </p>
           ) : (
             <p style={{ margin: "16px 0 0", fontSize: 14, lineHeight: 1.5, color: C.paper }}>
               Honest read: out of reach at your current baseline. Not a waiting problem.</p>
@@ -263,7 +286,11 @@ function Home({ profile, verdicts, plans, onOpen, onAdd, onFinancing }) {
             <div key={v.item._id} onClick={() => onOpen(v.item._id)} style={{ background: C.card,
               border: `1px solid ${C.line}`, borderRadius: 14, padding: 13, cursor: "pointer" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-                <Icon n={GLYPH[v.item.cat] || "gift"} s={20} />
+                {getItemImage(v.item) ? (
+                  <img src={getItemImage(v.item)} alt={v.item.name} style={{ width: 24, height: 24, borderRadius: 6, objectFit: "cover" }} />
+                ) : (
+                  <Icon n={GLYPH[v.item.cat] || "gift"} s={20} />
+                )}
                 <Chip tier={tierOf(v)} />
               </div>
               <p style={{ margin: 0, fontSize: 14.5, fontWeight: 500, color: C.ink }}>{v.item.name}</p>
@@ -301,21 +328,25 @@ function Wishlist({ verdicts, onOpen, onAdd, onRemove }) {
           Nothing here yet. Add the thing you keep thinking about.</p>
       )}
       {verdicts.map((v, i) => (
-        <div key={v.item._id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 0",
-          borderBottom: i < verdicts.length - 1 ? `1px solid ${C.line}` : "none" }}>
-          <div onClick={() => onOpen(v.item._id)} style={{ width: 40, height: 40, borderRadius: 11,
-            background: TIER[tierOf(v)].bg, display: "flex", alignItems: "center",
-            justifyContent: "center", cursor: "pointer" }}>
-            <Icon n={GLYPH[v.item.cat] || "gift"} c={TIER[tierOf(v)].fg} s={19} />
-          </div>
-          <div onClick={() => onOpen(v.item._id)} style={{ flex: 1, cursor: "pointer" }}>
-            <p style={{ margin: 0, fontSize: 15, fontWeight: 500, color: C.ink }}>{v.item.name}</p>
-            <p style={{ margin: 0, fontSize: 12.5, color: C.sub }}>
+        <div key={v.item._id} onClick={() => onOpen(v.item._id)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 0",
+          cursor: "pointer", borderBottom: i < verdicts.length - 1 ? `1px solid ${C.line}` : "none" }}>
+          {getItemImage(v.item) ? (
+            <img src={getItemImage(v.item)} alt={v.item.name} style={{ width: 52, height: 52, borderRadius: 14, objectFit: "contain" }} />
+          ) : (
+            <div style={{ width: 52, height: 52, borderRadius: 14,
+              background: TIER[tierOf(v)].bg, display: "flex", alignItems: "center",
+              justifyContent: "center" }}>
+              <Icon n={GLYPH[v.item.cat] || "gift"} c={TIER[tierOf(v)].fg} s={22} />
+            </div>
+          )}
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: 0, fontSize: 17, fontWeight: 600, color: C.ink }}>{v.item.name}</p>
+            <p style={{ margin: "2px 0 0", fontSize: 14, color: C.sub }}>
               {money(v.item.price)}{v.action === "wait" ? ` · ~${v.tStar} wk` : ""}</p>
           </div>
           <Chip tier={tierOf(v)} />
-          <span onClick={() => onRemove(v.item._id)} aria-label="Remove"
-            style={{ fontSize: 18, color: C.sub, cursor: "pointer", padding: "0 2px" }}>×</span>
+          <span onClick={(e) => { e.stopPropagation(); onRemove(v.item._id); }} aria-label="Remove"
+            style={{ fontSize: 20, color: C.sub, cursor: "pointer", padding: "4px 6px" }}>×</span>
         </div>
       ))}
     </div>
@@ -365,19 +396,27 @@ function ItemDetail({ v, settings, onBack, onWatch }) {
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 18px 8px" }}>
         <span onClick={onBack} style={{ cursor: "pointer" }}><Icon n="back" c={C.ink} /></span>
         <div style={{ flex: 1 }}>
-          <p style={{ margin: 0, fontSize: 16, fontWeight: 500, color: C.ink }}>{v.item.name}</p>
-          <p style={{ margin: 0, fontSize: 12.5, color: C.sub }}>{money(v.item.price)} today</p>
+          <p style={{ margin: 0, fontSize: 17, fontWeight: 600, color: C.ink }}>{v.item.name}</p>
+          <p style={{ margin: "1px 0 0", fontSize: 13, color: C.sub }}>{money(v.item.price)} today</p>
         </div>
         <Chip tier={t} />
       </div>
       <div style={{ padding: "6px 14px 0" }}>
-        <div style={{ background: C.dark, borderRadius: 18, padding: "18px 20px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-            <Icon n="clock" c={C.mint} s={18} />
-            <span style={{ fontSize: 12.5, color: "#B7B0A4" }}>The call</span>
+        <div style={{ background: C.dark, borderRadius: 18, padding: "20px 22px", border: "1px solid rgba(216, 179, 106, 0.35)",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.35), 0 0 20px rgba(216, 179, 106, 0.15)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <Icon n="clock" c={C.gold} s={18} />
+                <span style={{ fontSize: 12.5, color: C.gold, fontWeight: 500 }}>The call</span>
+              </div>
+              <p style={{ margin: "0 0 4px", fontFamily: SERIF, fontSize: 26, fontWeight: 500, color: C.gold }}>{verdictText}</p>
+            </div>
+            {getItemImage(v.item) && (
+              <img src={getItemImage(v.item)} alt={v.item.name} style={{ width: 64, height: 64, borderRadius: 14, objectFit: "contain" }} />
+            )}
           </div>
-          <p style={{ margin: "0 0 6px", fontFamily: SERIF, fontSize: 24, fontWeight: 500, color: C.bg }}>{verdictText}</p>
-          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: C.paper }}>{why}</p>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: C.paper }}>{why}</p>
           {!v.firm && (
             <p style={{ margin: "10px 0 0", fontSize: 12.5, color: C.gold }}>
               Close call — the timing shifts within the forecast's uncertainty.</p>
@@ -459,10 +498,10 @@ function Insights({ profile, verdicts, plansBurn }) {
     <div style={{ flex: 1, overflowY: "auto", padding: "0 18px" }}>
       <H>Insights</H>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-        <Stat label="Baseline runway" value={`${runway.toFixed(1)} mo`} />
-        <Stat label="Wishlist total" value={money(wishTotal)} />
-        <Stat label="Ready to buy" value={`${readyCount} of ${verdicts.length}`} />
-        <Stat label="Monthly surplus" value={money(profile.income - profile.burn - plansBurn)} />
+        <Stat label="Baseline runway" value={`${runway.toFixed(1)} mo`} sub="Savings ÷ Monthly expenses" />
+        <Stat label="Wishlist total" value={money(wishTotal)} sub="Combined price of all wants" />
+        <Stat label="Ready to buy" value={`${readyCount} of ${verdicts.length}`} sub="Passes your risk threshold" />
+        <Stat label="Monthly surplus" value={money(profile.income - profile.burn - plansBurn)} sub="Income − fixed burn" />
       </div>
       <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 16, padding: "15px 17px" }}>
         <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
@@ -476,20 +515,27 @@ function Insights({ profile, verdicts, plansBurn }) {
     </div>
   );
 }
-const Stat = ({ label, value }) => (
-  <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 14, padding: "13px 15px" }}>
-    <p style={{ margin: 0, fontFamily: SERIF, fontSize: 20, fontWeight: 500, color: C.ink }}>{value}</p>
-    <p style={{ margin: "1px 0 0", fontSize: 11.5, color: C.sub }}>{label}</p>
+const Stat = ({ label, value, sub }) => (
+  <div className="glow-card-wrap">
+    <div className="glow-card-inner">
+      <p style={{ margin: 0, fontFamily: SERIF, fontSize: 20, fontWeight: 500, color: C.ink }}>{value}</p>
+      <p style={{ margin: "1px 0 0", fontSize: 11.5, color: C.sub, fontWeight: 500 }}>{label}</p>
+      {sub && <p style={{ margin: "2px 0 0", fontSize: 10, color: "#8E887D" }}>{sub}</p>}
+    </div>
   </div>
 );
 
-function ProfileTab({ profile }) {
+function ProfileTab({ profile, onSignOut }) {
   const upsert = useMutation(api.profiles.upsert);
   const { signOut } = useAuthActions();
   const [inc, setInc] = useState(String(profile.income));
   const [burn, setBurn] = useState(String(profile.burn));
   const [sav, setSav] = useState(String(profile.savings));
   const [saved, setSaved] = useState(false);
+  const handleSignOut = async () => {
+    await signOut();
+    if (onSignOut) onSignOut();
+  };
   const save = async (extra = {}) => {
     await upsert({ name: profile.name, income: +inc || 0, burn: +burn || 0, savings: +sav || 0,
       piMax: profile.piMax, kappaWk: profile.kappaWk, bufferMonths: profile.bufferMonths, ...extra });
@@ -516,20 +562,28 @@ function ProfileTab({ profile }) {
         {saved ? "Saved ✓" : "Update baseline"}</Btn>
 
       <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 500, color: C.ink }}>Risk tolerance</p>
-      <p style={{ margin: "0 0 8px", fontSize: 12, color: C.sub }}>The crunch probability you'll accept — your choice.</p>
+      <p style={{ margin: "0 0 8px", fontSize: 12, color: C.sub, lineHeight: 1.4 }}>
+        Maximum probability of crunch risk you'll accept before buying.
+      </p>
       <Seg field="piMax" value={profile.piMax}
         opts={[["Cautious 5%", 0.05], ["Balanced 10%", 0.10], ["Bold 20%", 0.20]]} />
 
       <p style={{ margin: "16px 0 4px", fontSize: 13, fontWeight: 500, color: C.ink }}>What counts as a crunch?</p>
+      <p style={{ margin: "0 0 8px", fontSize: 12, color: C.sub, lineHeight: 1.4 }}>
+        The safety floor. "1 mo buffer" triggers a crunch if savings dip below 1 month of expenses.
+      </p>
       <Seg field="bufferMonths" value={profile.bufferMonths}
         opts={[["Below 1 mo buffer", 1], ["Hitting $0", 0]]} />
 
-      <p style={{ margin: "16px 0 4px", fontSize: 13, fontWeight: 500, color: C.ink }}>Impatience</p>
+      <p style={{ margin: "16px 0 4px", fontSize: 13, fontWeight: 500, color: C.ink }}>Impatience (cost of waiting)</p>
+      <p style={{ margin: "0 0 8px", fontSize: 12, color: C.sub, lineHeight: 1.4 }}>
+        How much waiting costs your peace of mind ($/week). Higher values nudge decisions to buy sooner.
+      </p>
       <Seg field="kappaWk" value={profile.kappaWk}
-        opts={[["$0", 0], ["$5/wk", 5], ["$15/wk", 15]]} />
+        opts={[["$0 (Patient)", 0], ["$5/wk", 5], ["$15/wk (Eager)", 15]]} />
 
       <div style={{ marginTop: 22, paddingTop: 14, borderTop: `1px solid ${C.line}` }}>
-        <button onClick={() => void signOut()} style={{ background: "none", border: "none",
+        <button onClick={handleSignOut} style={{ background: "none", border: "none",
           display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: 0,
           fontSize: 14, color: C.clay, fontFamily: SANS }}>
           <Icon n="out" c={C.clay} s={18} /> Sign out
@@ -543,6 +597,12 @@ function AddSheet({ onClose, onSave }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [cat, setCat] = useState("luxury");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [storageId, setStorageId] = useState(null);
+  const fileInputRef = useRef(null);
+  const generateUploadUrl = useMutation(api.wants.generateUploadUrl);
+
   return (
     <div style={{ position: "absolute", inset: 0, background: "rgba(30,27,22,0.4)",
       display: "flex", alignItems: "flex-end", zIndex: 10 }} onClick={onClose}>
@@ -557,12 +617,83 @@ function AddSheet({ onClose, onSave }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             {Object.entries(CATS).map(([k, v]) => (
               <button key={k} onClick={() => setCat(k)} style={{ border: `1px solid ${cat === k ? C.ink : C.line}`,
-                background: cat === k ? C.ink : C.card, color: cat === k ? C.bg : C.ink, borderRadius: 10,
-                padding: "9px 8px", fontSize: 12.5, cursor: "pointer", fontFamily: SANS }}>{v.label}</button>
+                background: cat === k ? C.ink : C.card, color: cat === k ? C.bg : C.ink, borderRadius: 12,
+                padding: "8px 10px", fontSize: 12.5, cursor: "pointer", fontFamily: SANS,
+                display: "flex", alignItems: "center", gap: 8 }}>
+                {CAT_IMAGES[k] ? (
+                  <img src={CAT_IMAGES[k]} alt={v.label} style={{ width: 22, height: 22, borderRadius: 5, objectFit: "cover" }} />
+                ) : (
+                  <Icon n={GLYPH[k] || "gift"} s={16} c={cat === k ? C.bg : C.ink} />
+                )}
+                <span>{v.label}</span>
+              </button>
             ))}
           </div>
         </div>
-        <Btn full onClick={() => name && +price > 0 && onSave({ name: name.trim(), price: +price, cat })}>
+        {cat === "other" && (
+          <div style={{ marginBottom: 18 }}>
+            <label style={{ fontSize: 13, color: C.sub, display: "block", marginBottom: 6 }}>Upload image from computer</label>
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              style={{ display: "none" }}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setSelectedFile(file);
+                setUploading(true);
+                try {
+                  const postUrl = await generateUploadUrl();
+                  const result = await fetch(postUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": file.type },
+                    body: file,
+                  });
+                  const { storageId: sId } = await result.json();
+                  setStorageId(sId);
+                } catch (err) {
+                  console.error("Upload failed", err);
+                } finally {
+                  setUploading(false);
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              style={{
+                width: "100%",
+                background: C.card,
+                border: `1px dashed ${C.line}`,
+                borderRadius: 12,
+                padding: "12px",
+                fontSize: 13,
+                color: C.ink,
+                cursor: "pointer",
+                fontFamily: SANS,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+              }}
+            >
+              <Icon n="link" s={18} />
+              {uploading
+                ? "Uploading..."
+                : selectedFile
+                ? `Uploaded: ${selectedFile.name}`
+                : "Choose image file..."}
+            </button>
+          </div>
+        )}
+        <Btn variant="gold" full onClick={() => {
+          if (!name.trim() || !+price || +price <= 0) return;
+          const payload = { name: name.trim(), price: +price, cat };
+          if (storageId) payload.storageId = storageId;
+          onSave(payload);
+        }}>
           Run the numbers</Btn>
       </div>
     </div>
@@ -582,10 +713,11 @@ function TabBar({ tab, onTab, onAdd }) {
       padding: "8px 0 12px", borderTop: `1px solid ${C.line}`, background: C.card }}>
       <T id="home" n="home" label="Home" />
       <T id="wishlist" n="list" label="Wants" />
-      <button onClick={onAdd} aria-label="Add a want" style={{ background: C.ink, border: "none",
+      <button onClick={onAdd} aria-label="Add a want" style={{ background: C.gold, border: "none",
         width: 44, height: 44, borderRadius: "50%", display: "flex", alignItems: "center",
-        justifyContent: "center", cursor: "pointer", marginTop: -6 }}>
-        <Icon n="plus" c={C.bg} s={22} />
+        justifyContent: "center", cursor: "pointer", marginTop: -6,
+        boxShadow: "0 0 18px rgba(216, 179, 106, 0.6), 0 4px 14px rgba(216, 179, 106, 0.4)" }}>
+        <Icon n="plus" c="#1E1B16" s={22} />
       </button>
       <T id="insights" n="chart" label="Insights" />
       <T id="profile" n="user" label="Profile" />
@@ -594,7 +726,7 @@ function TabBar({ tab, onTab, onAdd }) {
 }
 
 // ---------- the signed-in app (data from Convex) ----------------------------
-function MainApp() {
+function MainApp({ onSignOut }) {
   const profile = useQuery(api.profiles.get);
   const wants = useQuery(api.wants.list) ?? [];
   const plans = useQuery(api.plans.list) ?? [];
@@ -652,12 +784,20 @@ function MainApp() {
             onOpen={handleOpen} onAdd={() => setAdding(true)}
             onRemove={(id) => void removeWant({ id })} />}
           {tab === "insights" && <Insights profile={profile} verdicts={verdicts} plansBurn={plansBurn} />}
-          {tab === "profile" && <ProfileTab profile={profile} />}
+          {tab === "profile" && <ProfileTab profile={profile} onSignOut={onSignOut} />}
           <TabBar tab={tab} onTab={setTab} onAdd={() => setAdding(true)} />
         </>
       )}
       {adding && <AddSheet onClose={() => setAdding(false)}
-        onSave={async (it) => { await addWant(it); setAdding(false); setTab("wishlist"); }} />}
+        onSave={async (it) => {
+          try {
+            await addWant(it);
+            setAdding(false);
+            setTab("wishlist");
+          } catch (err) {
+            console.error("Failed to add want item:", err);
+          }
+        }} />}
     </>
   );
 }
@@ -669,19 +809,76 @@ const Center = ({ children }) => (
 
 // ---------- shell ------------------------------------------------------------
 export default function App() {
+  const [showIntro, setShowIntro] = useState(() => !sessionStorage.getItem("poise_intro_dismissed"));
+
+  const handleDoneIntro = () => {
+    sessionStorage.setItem("poise_intro_dismissed", "true");
+    setShowIntro(false);
+  };
+
+  const handleSignOut = () => {
+    sessionStorage.removeItem("poise_intro_dismissed");
+    setShowIntro(true);
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: "#DEDACF", display: "flex",
       justifyContent: "center", alignItems: "flex-start", padding: "24px 12px", fontFamily: SANS }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Inter:wght@400;500&display=swap');
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Josefin+Sans:wght@400;500;600&display=swap');
         body{margin:0}
         button:focus-visible,input:focus-visible{outline:2px solid ${C.accent};outline-offset:2px}
-        input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}`}</style>
+        input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+        @keyframes borderSweep {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        .glow-card-wrap {
+          position: relative;
+          border-radius: 16px;
+          padding: 1.5px;
+          overflow: hidden;
+          box-shadow: 0 4px 14px rgba(30, 27, 22, 0.05);
+        }
+        .glow-card-wrap::before {
+          content: '';
+          position: absolute;
+          top: -50%;
+          left: -50%;
+          width: 200%;
+          height: 200%;
+          background: conic-gradient(
+            transparent 0deg,
+            transparent 250deg,
+            rgba(216, 179, 106, 0.85) 300deg,
+            #F59E0B 330deg,
+            rgba(216, 179, 106, 0.85) 350deg,
+            transparent 360deg
+          );
+          animation: borderSweep 2.0s linear infinite;
+          pointer-events: none;
+        }
+        .glow-card-inner {
+          position: relative;
+          background: #FFFFFF;
+          border-radius: 14.5px;
+          z-index: 1;
+          padding: 13px 15px;
+          height: 100%;
+          box-sizing: border-box;
+        }`}</style>
       <div style={{ position: "relative", width: "100%", maxWidth: 390, height: 800, background: C.bg,
-        borderRadius: 28, overflow: "hidden", boxShadow: "0 12px 40px rgba(30,27,22,0.14)",
+        borderRadius: 28, overflow: "hidden",
+        boxShadow: "0 20px 50px rgba(30,27,22,0.22), 0 0 0 1px rgba(0,0,0,0.08)",
         display: "flex", flexDirection: "column" }}>
-        <AuthLoading><Center>Loading…</Center></AuthLoading>
-        <Unauthenticated><SignIn /></Unauthenticated>
-        <Authenticated><MainApp /></Authenticated>
+        {showIntro ? (
+          <SketchIntro onDone={handleDoneIntro} />
+        ) : (
+          <>
+            <AuthLoading><Center>Loading…</Center></AuthLoading>
+            <Unauthenticated><SignIn /></Unauthenticated>
+            <Authenticated><MainApp onSignOut={handleSignOut} /></Authenticated>
+          </>
+        )}
       </div>
     </div>
   );
