@@ -457,7 +457,7 @@ function ItemDetail({ v, settings, onBack, onWatch }) {
   );
 }
 
-function Financing({ plans, onBack, onConnect }) {
+function Financing({ plans, onBack, onConnect, onRemove }) {
   const owed = plans.reduce((s, p) => s + p.installment * p.remaining, 0);
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "0 18px" }}>
@@ -471,21 +471,85 @@ function Financing({ plans, onBack, onConnect }) {
           <p style={{ margin: "2px 0 0", fontFamily: SERIF, fontSize: 28, fontWeight: 500, color: C.bg }}>{money(owed)}</p>
         </div>
       )}
+      {plans.length === 0 && (
+        <p style={{ fontSize: 14, color: C.sub, lineHeight: 1.5, margin: "4px 0 16px" }}>
+          No financing plans connected yet.</p>
+      )}
       {plans.map((p) => (
         <div key={p._id} style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 14,
-          padding: "13px 15px", marginBottom: 10 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: C.ink }}>{p.provider} · {p.itemName}</p>
-            <span style={{ fontSize: 12.5, color: p.apr > 0 ? C.clay : C.sub }}>
-              {p.apr > 0 ? `${p.apr}% APR` : "0% (pay-in-4)"}</span>
+          padding: "13px 15px", marginBottom: 10, display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: C.ink }}>{p.provider} · {p.itemName}</p>
+              <span style={{ fontSize: 12.5, color: p.apr > 0 ? C.clay : C.sub }}>
+                {p.apr > 0 ? `${p.apr}% APR` : "0% (pay-in-4)"}</span>
+            </div>
+            <p style={{ margin: 0, fontSize: 12.5, color: C.sub }}>
+              {money(p.installment)} × {p.remaining} left · next {p.nextDue}</p>
           </div>
-          <p style={{ margin: 0, fontSize: 12.5, color: C.sub }}>
-            {money(p.installment)} × {p.remaining} left · next {p.nextDue}</p>
+          <button onClick={() => onRemove(p._id)} aria-label={`Remove ${p.provider} plan`}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: C.sub,
+              fontSize: 18, lineHeight: 1, flexShrink: 0 }}>×</button>
         </div>
       ))}
-      <Btn full onClick={onConnect} style={{ margin: "6px 0 12px" }}>Connect accounts (demo)</Btn>
+      <Btn full onClick={onConnect} style={{ margin: "6px 0 12px" }}>Connect an account</Btn>
       <p style={{ fontSize: 12, color: C.sub, lineHeight: 1.5 }}>
         Plan payments fold into your fixed expenses, so every verdict already carries them.</p>
+    </div>
+  );
+}
+
+// ---------- provider catalog + the connect-accounts picker -----------------
+const PROVIDER_CATALOG = {
+  Klarna:   { itemName: "ASOS order", installment: 31, remaining: 2, nextDue: "2026-07-20", apr: 0 },
+  Afterpay: { itemName: "Sneakers", installment: 47, remaining: 3, nextDue: "2026-07-15", apr: 0 },
+  Affirm:   { itemName: "Laptop financing", installment: 89, remaining: 6, nextDue: "2026-07-25", apr: 15 },
+};
+
+function ConnectAccounts({ connectedProviders, onBack, onConnect }) {
+  const [selected, setSelected] = useState([]);
+  const toggle = (provider) => {
+    setSelected((s) => s.includes(provider) ? s.filter((p) => p !== provider) : [...s, provider]);
+  };
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: "0 18px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 0 0" }}>
+        <span onClick={onBack} style={{ cursor: "pointer" }}><Icon n="back" c={C.ink} /></span>
+        <H>Connect an account</H>
+      </div>
+      <p style={{ fontSize: 13, color: C.sub, lineHeight: 1.5, margin: "0 0 16px" }}>
+        Demo mode — pick the providers you'd like to connect. Already-connected
+        ones are locked so you can't add duplicates.
+      </p>
+      {Object.entries(PROVIDER_CATALOG).map(([provider, demo]) => {
+        const already = connectedProviders.includes(provider);
+        const checked = selected.includes(provider);
+        return (
+          <div key={provider} onClick={() => !already && toggle(provider)}
+            style={{ display: "flex", alignItems: "center", gap: 12,
+              background: already ? C.line : C.card,
+              border: `${checked ? 2 : 1}px solid ${checked ? C.ink : C.line}`,
+              borderRadius: 14, padding: "14px 15px", marginBottom: 10,
+              cursor: already ? "default" : "pointer", opacity: already ? 0.6 : 1 }}>
+            <div style={{ width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+              border: `2px solid ${checked ? C.ink : C.sub}`, background: checked ? C.ink : "transparent",
+              display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {checked && <Icon n="check" c={C.bg} s={14} />}
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontSize: 15, fontWeight: 500, color: C.ink }}>{provider}</p>
+              <p style={{ margin: 0, fontSize: 12, color: C.sub }}>
+                {already ? "Already connected" : `${demo.apr > 0 ? demo.apr + "% APR" : "0% (pay-in-4)"} · demo data`}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+      <Btn full disabled={selected.length === 0}
+        onClick={() => { onConnect(selected); setSelected([]); }}
+        style={{ margin: "10px 0 12px" }}>
+        {selected.length === 0 ? "Select a provider" : `Connect ${selected.length} selected`}
+      </Btn>
     </div>
   );
 }
@@ -735,6 +799,7 @@ function MainApp({ onSignOut }) {
   const setWatching = useMutation(api.wants.setWatching);
   const recordOpen = useMutation(api.wants.recordOpen);
   const addPlans = useMutation(api.plans.addMany);
+  const removePlan = useMutation(api.plans.remove);
 
   const [tab, setTab] = useState("home");
   const [view, setView] = useState(null);
@@ -771,10 +836,19 @@ function MainApp({ onSignOut }) {
             setView(null); }} />
       ) : view?.t === "financing" ? (
         <Financing plans={plans} onBack={() => setView(null)}
-          onConnect={() => { void addPlans({ plans: [
-            { provider: "Klarna", itemName: "ASOS order", installment: 31, remaining: 2, nextDue: "2026-07-20", apr: 0 },
-            { provider: "Afterpay", itemName: "Sneakers", installment: 47, remaining: 3, nextDue: "2026-07-15", apr: 0 },
-          ]}); }} />
+          onConnect={() => setView({ t: "connect" })}
+          onRemove={(id) => void removePlan({ id })} />
+      ) : view?.t === "connect" ? (
+        <ConnectAccounts
+          connectedProviders={plans.map((p) => p.provider)}
+          onBack={() => setView({ t: "financing" })}
+          onConnect={(selectedProviders) => {
+            const newPlans = selectedProviders.map((provider) => ({
+              provider, ...PROVIDER_CATALOG[provider],
+            }));
+            void addPlans({ plans: newPlans });
+            setView({ t: "financing" });
+          }} />
       ) : (
         <>
           {tab === "home" && <Home profile={profile} verdicts={verdicts} plans={plans}

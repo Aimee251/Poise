@@ -30,3 +30,15 @@ export const addMany = mutation({
     for (const p of plans) await ctx.db.insert("plans", { userId, ...p });
   },
 });
+
+/** Remove a single connected plan (ownership-checked). */
+export const remove = mutation({
+  args: { id: v.id("plans") },
+  handler: async (ctx, { id }) => {
+    const userId = await getAuthUserId(ctx);
+    const plan = await ctx.db.get(id);
+    if (!plan || plan.userId !== userId) throw new Error("Not found");
+    await ctx.db.delete(id);
+  },
+});
+
